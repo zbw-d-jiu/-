@@ -10,6 +10,10 @@
 | 插件初始化 | create_file创建.gitignore；真实提交57bb547f95f402860389f27e6e6a42bd75532c99 |
 | 本地关联 | 本项目初始化Git main，origin=https://github.com/zbw-d-jiu/-.git，fetch并以远端初始化提交为基线；不覆盖用户工作树 |
 | 源码准备 | .gitignore排除.tools/.data/依赖/构建结果/原始.log/历史0.01和0.02含个人来源资料。最新代码、公开文档和0.03日志准备由插件提交 |
-| 源码全量同步 | 待主会话最终执行并填写真实commit/远端核对，当前不得声称已同步 |
+| 源码全量同步 | 插件create_blob上传4张合成浏览器JPEG，create_tree纳入68文件；create_commit生成d5e0d166415a0e43403bb913469f7b50f61374e8；update_ref以expected_sha核对旧main且force=false更新成功 |
+| 远端核对 | 插件GET refs/heads/main确认d5e0d166415a0e43403bb913469f7b50f61374e8；本地git fetch origin main与git reset --mixed origin/main保留工作树，随后git status --short无输出，确认源码一致 |
+| 日志收口 | 2026-10-15继续收口，将本条和组长/产品负责人最终状态另作文档提交；业务基线为上述SHA，最终文档SHA以main提交历史为准，不预填自身SHA |
 
 仅向本项目仓库写代码和可公开合成证据。不上传实际DB口令、会话token、本机个人配置、课程原件或含个人来源路径的历史记录；没有发送邮件、聊天或课程平台通知。
+
+源码提交：[d5e0d16](https://github.com/zbw-d-jiu/-/commit/d5e0d166415a0e43403bb913469f7b50f61374e8)。远端写入全部经用户已连接GitHub插件，本地Git用于拉取与校对。
