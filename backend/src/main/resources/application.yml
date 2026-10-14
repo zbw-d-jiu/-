@@ -19,3 +19,6 @@ spring:
 app:
   booking-days: 7
   demo-seed: ${DEMO_SEED:false}
+  # 默认仅本机开发；prod覆盖为已授权HTTPS网站，来源用逗号分隔。
+  cors:
+    allowed-origins: http://localhost:5173,http://127.0.0.1:5173

@@ -2,6 +2,8 @@
 
 基于 **Spring Boot + Vue2 / Element-UI + MySQL8** 的软件工程课程首版，实现学生和管理员两种角色、六个业务模块。当前用于本机合成数据演示；真实学生身份接入、学校平台提交和生产部署尚未执行。
 
+宝塔生产打包已完成，使用Axios与history路由，生产API为`https://www.zhangbowen666.cn/api`。完整配置、打包命令、产物及部署检查见[宝塔部署说明](deploy/baota/README-宝塔部署.md)；一键整理发布包使用`scripts/package-baota.ps1`。普通JAR排除H2/demo/test，生产必须启用prod并提供数据库口令。开发Vite仍走本机/api代理；生产dist不能当作本地代理服务使用。旧前端运行说明属于生产改造前记录，当前以新增生产说明为准。
+
 ![学生端预约后剩29个名额](docs/testing/浏览器证据/30人名额预约后剩29.jpg)
 
 ## 已实现功能

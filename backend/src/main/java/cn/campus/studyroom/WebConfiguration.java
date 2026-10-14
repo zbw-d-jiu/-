@@ -2,18 +2,30 @@ package cn.campus.studyroom;
 
 import jakarta.servlet.http.*;
 import java.time.*;
+import java.util.Arrays;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.config.annotation.*;
 
-/** HTTP鉴权、开发跨域与业务时钟配置；静态资源和健康检查不需要令牌。 */
+/** HTTP鉴权、按环境跨域与业务时钟配置；仅依赖Security Crypto，认证由MVC拦截器与业务服务完成。 */
 @Configuration
 public class WebConfiguration implements WebMvcConfigurer {
   private final BookingService service;
+  private final String[] allowedOrigins;
 
-  /** 注入服务，所有鉴权依赖持久化会话而非前端role。 */
-  public WebConfiguration(BookingService service) {
+  /** 注入会话服务与逗号分隔来源；无Spring Security FilterChain，不把密码库误称为完整安全认证链。 */
+  public WebConfiguration(
+      BookingService service,
+      @Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}")
+          String origins) {
     this.service = service;
+    this.allowedOrigins =
+        Arrays.stream(origins.split(","))
+            .map(String::trim)
+            .filter(origin -> !origin.isEmpty())
+            .distinct()
+            .toArray(String[]::new);
   }
 
   /** 上海业务Clock；测试可用@Primary固定Clock进行边界复现。 */
@@ -42,12 +54,12 @@ public class WebConfiguration implements WebMvcConfigurer {
         .excludePathPatterns("/api/auth/login", "/api/auth/register", "/api/health");
   }
 
-  /** 本机开发页面可访问API；不允许任意来源，Bearer无需浏览器cookie。 */
+  /** 使用环境配置的明确来源；开发默认5173，prod仅指定HTTPS域名，Bearer无需浏览器cookie。 */
   @Override
   public void addCorsMappings(CorsRegistry registry) {
     registry
         .addMapping("/api/**")
-        .allowedOrigins("http://localhost:5173", "http://127.0.0.1:5173")
+        .allowedOrigins(allowedOrigins)
         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
         .allowedHeaders("Authorization", "Content-Type");
   }

@@ -1,0 +1,33 @@
+# 宝塔Nginx生产配置：必须通过--spring.profiles.active=prod启用。
+# 后端只监听回环固定8080，由Nginx负责HTTPS；不把数据库密码写入源码或启动日志。
+server:
+  address: 127.0.0.1
+  port: 8080
+  forward-headers-strategy: framework
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/study_room_reserve?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${DB_USERNAME:study_room}
+    # 无默认值：生产必须从受控环境注入DB_PASSWORD，不能沿用开发空密码。
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    open-in-view: false
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    clean-disabled: true
+logging:
+  level:
+    root: INFO
+    # 禁止生产SQL及绑定参数调试输出，避免业务值或认证信息进入日志。
+    org.hibernate.SQL: 'OFF'
+    org.hibernate.orm.jdbc.bind: 'OFF'
+    org.springframework.jdbc.core: INFO
+app:
+  # prod不读取DEMO_SEED环境变量，演示账号/密码与合成数据初始化固定关闭。
+  demo-seed: false
+  cors:
+    allowed-origins: https://www.zhangbowen666.cn

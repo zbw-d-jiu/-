@@ -4,7 +4,8 @@ import { session, refreshUser } from './api.js'
 Vue.use(VueRouter)
 // 根组件按路由渲染对应功能；占位出口不实例化第二份业务组件。
 const outlet = { render: h => h('span') }
-export const router = new VueRouter({ mode: 'hash', routes: [
+// History路由使用站点根路径；部署必须让非/api页面路径回退index.html，刷新/login等路径不会404。
+export const router = new VueRouter({ mode: 'history', base: import.meta.env.BASE_URL, routes: [
   { path: '/login', component: outlet, meta: { public: true } },
   { path: '/register', component: outlet, meta: { public: true } },
   ...['rooms', 'orders', 'violations', 'profile'].map(name => ({ path: `/${name}`, component: outlet, meta: { role: 'STUDENT' } })),

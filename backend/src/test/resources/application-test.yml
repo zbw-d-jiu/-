@@ -1,4 +1,4 @@
-# 独立测试使用合成内存数据库，无默认账号，测试自行准备数据。
+# 仅测试classpath配置：不进入生产jar，独立测试自行准备合成内存数据且无默认账号。
 spring:
   datasource:
     url: jdbc:h2:mem:studyroom_test;MODE=MySQL;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=15000
