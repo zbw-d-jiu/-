@@ -1,0 +1,28 @@
+# 本地工具、依赖与构建结果可重新生成，不提交到仓库。
+.tools/
+.data/
+tmp/
+backend/target/
+frontend/node_modules/
+frontend/dist/
+artifacts/
+*.log
+
+# 环境变量及个人配置仅在本机保存；示例配置仍可提交。
+.env
+.env.*
+!.env.example
+application-local.yml
+.idea/
+.vscode/
+*.iml
+
+# 历史课程材料含本机来源路径与原版表格，保留本地归档。
+# 新版开发过程和可公开的技术说明正常纳入版本管理。
+开发日志/开发日志0.01/
+开发日志/开发日志0.02/
+
+# 操作系统缓存。
+Thumbs.db
+.DS_Store
+
