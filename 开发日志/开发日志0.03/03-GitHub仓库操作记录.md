@@ -21,3 +21,7 @@
 ## 2026-10-15固定30名额变更
 
 用户明确修改容量粒度后，插件create_blob上传新29名额截图，create_tree/create_commit提交28个变更文件；update_ref（expected_sha=e6ebea898df8a0f42907af3a5d7c7a54e3f43059、force=false）成功更新main至[4c3b79d](https://github.com/zbw-d-jiu/-/commit/4c3b79df34f29c01d02aeda5cebdc2fb08ae7ae3)。随后GET main与本地fetch/reset --mixed核对该SHA，status为空。24项双库独立验证、实际迁移/浏览器/构建证据见06/07及新测试报告。本条和06/07最后状态另作文档提交，不改变业务源码或测试结果。
+
+## 2026-10-15宝塔生产打包
+
+插件create_tree/create_commit/update_ref以expected_sha=212445cd8636bfcd053f7d20161ce84dd49b47fe、force=false提交30个源码/配置/文档变更，实际提交[1ce7e23](https://github.com/zbw-d-jiu/-/commit/1ce7e2378c8c65e9e9eff51c2d4ba933ca864749)。GET main与本地fetch/reset --mixed一致，status为空。移动测试资源的旧路径在tree明确删除，新路径纳入；公开frontend/.env.production只有域名，其他真实.env仍排除。48.62MiB发布ZIP只交付指定桌面文件夹，未上传凭据或真实证书。09保存构建、独立验证、Nginx本机检查与产物校验事实；公网部署未执行。
