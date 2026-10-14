@@ -45,7 +45,7 @@ public final class Model {
     public String phone;
   }
 
-  /** 整间独占资源；软删除保留历史订单关联，容量只作展示。 */
+  /** 多人共享房间资源；每间固定30个名额，软删除保留历史订单关联。 */
   @Entity(name = "StudyRoom")
   @Table(name = "study_room")
   public static class Room {
@@ -62,7 +62,7 @@ public final class Model {
     @Column(nullable = false, length = 30)
     public String floor;
 
-    /** 展示容量，不代表多个并发席位。 */
+    /** 固定30人容量，每个学生预约占1名额，峰值占用不得超过此容量。 */
     @Column(nullable = false)
     public int capacity;
 
@@ -93,7 +93,7 @@ public final class Model {
     @JoinColumn(name = "user_id")
     public User user;
 
-    /** 整间资源外键。 */
+    /** 共享房间外键；本订单占用一个名额而非整间独占。 */
     @ManyToOne(optional = false)
     @JoinColumn(name = "room_id")
     public Room room;

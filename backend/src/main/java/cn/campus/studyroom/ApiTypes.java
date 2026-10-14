@@ -28,11 +28,11 @@ public final class ApiTypes {
   /** 仅允许修改姓名及联系方式。 */
   public record Profile(@NotBlank @Size(max = 40) String userName, @Size(max = 20) String phone) {}
 
-  /** 房间写入；容量必须为正，状态只允许开放或关闭。 */
+  /** 房间写入；本版每间固定30个名额，拒绝任意更改容量，状态只允许开放或关闭。 */
   public record RoomInput(
       @NotBlank @Size(max = 30) String roomNo,
       @NotBlank @Size(max = 30) String floor,
-      @Min(1) @Max(10000) int capacity,
+      @Min(30) @Max(30) int capacity,
       @Pattern(regexp = "OPEN|CLOSED") @NotNull String status,
       @Size(max = 200) String remark) {}
 

@@ -22,6 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 // READ_COMMITTED避免管理员鉴权的早期快照使后续加锁后仍读取陈旧违规计数；锁仍是并发约束主体。
 @Transactional(isolation = Isolation.READ_COMMITTED)
 public class BookingService implements ApplicationRunner {
+  /** 用户已确认固定30人容量；与API校验、Flyway V3及人分钟统计保持一致。 */
+  private static final int ROOM_CAPACITY = 30;
+
   @PersistenceContext private EntityManager em;
   private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
   private final SecureRandom random = new SecureRandom();
@@ -106,7 +109,8 @@ public class BookingService implements ApplicationRunner {
         u.isBan);
   }
 
-  private Map<String, Object> roomDto(Room r, boolean available) {
+  /** 查询时段的峰值占用与整个区间剩余名额；未筛选时两个名额字段为null，available仅表示开放。 */
+  private Map<String, Object> roomDto(Room r, Integer occupiedSeats) {
     return map(
         "id",
         r.id,
@@ -120,8 +124,12 @@ public class BookingService implements ApplicationRunner {
         r.status,
         "remark",
         r.remark,
+        "occupiedSeats",
+        occupiedSeats,
+        "remainingSeats",
+        occupiedSeats == null ? null : Math.max(0, ROOM_CAPACITY - occupiedSeats),
         "available",
-        available);
+        "OPEN".equals(r.status) && (occupiedSeats == null || occupiedSeats < ROOM_CAPACITY));
   }
 
   private Map<String, Object> orderDto(Order o) {
@@ -294,20 +302,52 @@ public class BookingService implements ApplicationRunner {
     }
   }
 
-  private long conflicts(Long userId, Long roomId, LocalDate date, LocalTime start, LocalTime end) {
+  private long studentConflicts(Long userId, LocalDate date, LocalTime start, LocalTime end) {
     // 半开区间：已有start<新end且已有end>新start；相邻边界不冲突。仅取消释放占用。
-    String field = userId != null ? "o.user.id" : "o.room.id";
     return em.createQuery(
-            "select count(o) from Booking o where "
-                + field
-                + "=:id and o.orderDate=:day and o.status <> 'CANCELLED' and o.startTime < :end and"
-                + " o.endTime > :start",
+            "select count(o) from Booking o where o.user.id=:id and o.orderDate=:day and o.status"
+                + " <> 'CANCELLED' and o.startTime < :end and o.endTime > :start",
             Long.class)
-        .setParameter("id", userId != null ? userId : roomId)
+        .setParameter("id", userId)
         .setParameter("day", date)
         .setParameter("start", start)
         .setParameter("end", end)
         .getSingleResult();
+  }
+
+  /** 半开时段边界事件；结束为-1、开始为+1，同刻结束先处理，允许相邻订单共享名额。 */
+  private record OccupancyEvent(LocalTime time, int delta) {}
+
+  /**
+   * 计算候选区间内实际同时占用峰值，不能直接累计所有重叠订单数。 每个非取消订单裁剪到候选区间后贡献一对事件，同刻结束先于开始，避免相邻时段误满。
+   * 创建预约调用者必须已持房间写锁，取消/管理员动作也使用相同房间锁，因此检查与插入原子。 列表查询只提供即时快照；最终预约仍重新加锁检查，不把列表剩余名额当成预留承诺。
+   */
+  private int peakOccupancy(Long roomId, LocalDate date, LocalTime start, LocalTime end) {
+    List<Order> overlapping =
+        em.createQuery(
+                "select o from Booking o where o.room.id=:id and o.orderDate=:day and o.status <>"
+                    + " 'CANCELLED' and o.startTime < :end and o.endTime > :start",
+                Order.class)
+            .setParameter("id", roomId)
+            .setParameter("day", date)
+            .setParameter("start", start)
+            .setParameter("end", end)
+            .getResultList();
+    List<OccupancyEvent> events = new ArrayList<>();
+    for (Order order : overlapping) {
+      LocalTime clippedStart = order.startTime.isAfter(start) ? order.startTime : start;
+      LocalTime clippedEnd = order.endTime.isBefore(end) ? order.endTime : end;
+      events.add(new OccupancyEvent(clippedStart, 1));
+      events.add(new OccupancyEvent(clippedEnd, -1));
+    }
+    events.sort(Comparator.comparing(OccupancyEvent::time).thenComparingInt(OccupancyEvent::delta));
+    int occupied = 0;
+    int peak = 0;
+    for (OccupancyEvent event : events) {
+      occupied += event.delta();
+      peak = Math.max(peak, occupied);
+    }
+    return peak;
   }
 
   /** 登录用户查询资源；完整查询区间计算真实可用性，缺少任一参数拒绝。 */
@@ -321,12 +361,7 @@ public class BookingService implements ApplicationRunner {
             "select r from StudyRoom r where r.deleted=false order by r.roomNo", Room.class)
         .getResultList()
         .stream()
-        .map(
-            r ->
-                roomDto(
-                    r,
-                    "OPEN".equals(r.status)
-                        && (!filtered || conflicts(null, r.id, date, start, end) == 0)))
+        .map(r -> roomDto(r, filtered ? peakOccupancy(r.id, date, start, end) : null))
         .toList();
   }
 
@@ -335,7 +370,7 @@ public class BookingService implements ApplicationRunner {
   public Object getRoom(long id) {
     Room r = room(id, false);
     require(!r.deleted, 404, "房间已删除");
-    return roomDto(r, "OPEN".equals(r.status));
+    return roomDto(r, null);
   }
 
   private boolean active(Room r) {
@@ -353,6 +388,7 @@ public class BookingService implements ApplicationRunner {
   public Object saveRoom(long actor, Long id, RoomInput dto) {
     User a = user(actor, false);
     admin(a);
+    require(dto.capacity() == ROOM_CAPACITY, 400, "每间房间固定30人容量，不允许修改");
     Room r = id == null ? new Room() : room(id, true);
     require(!r.deleted, 404, "房间已删除");
     require(
@@ -369,13 +405,13 @@ public class BookingService implements ApplicationRunner {
     if (id != null && "CLOSED".equals(dto.status())) require(!active(r), 409, "存在当前或未来有效预约，不能关闭房间");
     r.roomNo = dto.roomNo();
     r.floor = dto.floor();
-    r.capacity = dto.capacity();
+    r.capacity = ROOM_CAPACITY;
     r.status = dto.status();
     r.remark = dto.remark();
     if (id == null) em.persist(r);
     em.flush();
     audit(a, "ROOM_SAVE", "room:" + r.id, "保存房间，状态=" + r.status);
-    return roomDto(r, "OPEN".equals(r.status));
+    return roomDto(r, null);
   }
 
   /** 管理员软删除；历史记录继续关联，当前/未来有效预约阻止删除。 */
@@ -391,7 +427,7 @@ public class BookingService implements ApplicationRunner {
     return null;
   }
 
-  /** 学生创建预约；用户锁→房间锁同时防止学生跨房与房间跨学生重叠。 */
+  /** 学生创建单人预约；用户锁→房间锁防止本人重叠，并在持锁事务内检查30人峰值避免超售。 */
   public Object createOrder(long actor, BookingInput dto) {
     User u = user(actor, true);
     student(u);
@@ -400,13 +436,13 @@ public class BookingService implements ApplicationRunner {
     require(!r.deleted && "OPEN".equals(r.status), 409, "房间未开放");
     validateWindow(dto.orderDate(), dto.startTime(), dto.endTime(), true);
     require(
-        conflicts(u.id, null, dto.orderDate(), dto.startTime(), dto.endTime()) == 0,
+        studentConflicts(u.id, dto.orderDate(), dto.startTime(), dto.endTime()) == 0,
         409,
         "学生在该时段已有预约");
     require(
-        conflicts(null, r.id, dto.orderDate(), dto.startTime(), dto.endTime()) == 0,
+        peakOccupancy(r.id, dto.orderDate(), dto.startTime(), dto.endTime()) < ROOM_CAPACITY,
         409,
-        "房间在该时段已被预约");
+        "房间在该时段已满30人");
     Order o = new Order();
     o.user = u;
     o.room = r;
@@ -418,7 +454,7 @@ public class BookingService implements ApplicationRunner {
     o.createdAt = now();
     em.persist(o);
     em.flush();
-    audit(u, "BOOKING_CREATE", "order:" + o.id, "创建整间独占预约");
+    audit(u, "BOOKING_CREATE", "order:" + o.id, "创建单人名额预约，占用房间30个名额中的1个");
     return orderDto(o);
   }
 
@@ -601,7 +637,7 @@ public class BookingService implements ApplicationRunner {
         : Math.round(Math.min(100.0, 100.0 * minutes / denominator) * 100.0) / 100.0;
   }
 
-  /** 管理员日统计；真实使用仅完成订单的管理员到场/完成时间交集，所有百分比0至100。 */
+  /** 管理员日统计；每间分母840×30人分钟，每单占1人，真实使用仅完成订单证据区间交集，率0至100。 */
   @Transactional(readOnly = true)
   public Object statistics(long actor, LocalDate date) {
     admin(user(actor, false));
@@ -645,11 +681,11 @@ public class BookingService implements ApplicationRunner {
               "usedMinutes",
               used,
               "availableMinutes",
-              840,
+              840L * ROOM_CAPACITY,
               "bookingRate",
-              rate(reserved, 840),
+              rate(reserved, 840L * ROOM_CAPACITY),
               "usageRate",
-              rate(used, 840)));
+              rate(used, 840L * ROOM_CAPACITY)));
     }
     long violations =
         em.createQuery(
@@ -668,9 +704,9 @@ public class BookingService implements ApplicationRunner {
         "totalViolations",
         violations,
         "bookingRate",
-        rate(totalReserved, included.size() * 840L),
+        rate(totalReserved, included.size() * 840L * ROOM_CAPACITY),
         "usageRate",
-        rate(totalUsed, included.size() * 840L),
+        rate(totalUsed, included.size() * 840L * ROOM_CAPACITY),
         "rooms",
         rows);
   }
@@ -686,7 +722,7 @@ public class BookingService implements ApplicationRunner {
         Room r = new Room();
         r.roomNo = "30" + i;
         r.floor = "3楼";
-        r.capacity = 30;
+        r.capacity = ROOM_CAPACITY;
         r.status = "OPEN";
         r.remark = "合成演示房间";
         em.persist(r);

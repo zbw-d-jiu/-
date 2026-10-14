@@ -2,27 +2,29 @@
 
 基于 **Spring Boot + Vue2 / Element-UI + MySQL8** 的软件工程课程首版，实现学生和管理员两种角色、六个业务模块。当前用于本机合成数据演示；真实学生身份接入、学校平台提交和生产部署尚未执行。
 
-![学生端](docs/testing/浏览器证据/学生自习室.jpg)
+![学生端预约后剩29个名额](docs/testing/浏览器证据/30人名额预约后剩29.jpg)
 
 ## 已实现功能
 
 | 学生 | 管理员 |
 | --- | --- |
 | 注册、登录、修改姓名与联系方式 | 查看学生账号和预约权限 |
-| 查询房间、日期及空闲时段，整间独占预约 | 房间增改、开关和软删除，保留历史 |
+| 查询房间、日期及剩余名额，每人预约1个名额 | 房间增改、开关和软删除，每间固定30人 |
 | 查看本人预约，开始前取消 | 查看全部预约，异常取消并记录原因 |
 | 查看违规记录及预约权限状态 | 依据证据确认到场、迟到、爽约和完成 |
 | 取消后资源释放，历史保留 | 违规误判撤销、有效计数重算、三次封禁 |
 | 数据持久化，接口验证所有权 | 查看预约率和基于管理员事件的使用率 |
 
-用户已明确选择整间独占，容量仅展示。预约采用上海时区、同日08:00–22:00的半开区间，默认可约今天至后续7天；只有取消释放原时段。未知到场不会被定时自动判爽约。详见[业务规则](docs/product/首版业务规则与验收.md)和[API契约](docs/product/API契约.md)。
+用户最新要求每间固定30人，每个预约占1名额；预约后30→29，取消释放。剩余名额按查询区间峰值占用计算，同一学生重叠预约仍拒绝；后端持学生与房间行锁的事务内复核，防止并发超售。预约采用上海时区、同日08:00–22:00的半开区间，默认可约今天至后续7天；只有取消释放原时段。未知到场不会被定时自动判爽约。详见[当前30人规则](docs/product/30人名额变更规则与验收.md)和[API契约](docs/product/API契约.md)。
 
 ## Windows 快速运行
 
 环境需要 **JDK21**、Node.js 22/24；项目脚本可单独下载Maven、npm和MySQL8。本轮电脑上的工具与数据库已准备完成，在项目目录执行：
 
 ```powershell
-# 恢复依赖、检查前端、构建前后端、运行17项集成测试、保存依赖审计。
+# Windows构建前先停止本项目前后端，避免运行中的esbuild占用文件；MySQL和数据保留。
+.\stop.bat
+# 恢复依赖、检查前端、构建前后端、运行24项集成测试、保存依赖审计。
 .\build.bat
 
 # MySQL3307若已停止则恢复，保留原有数据。首次需先bootstrap -WithMySql。
@@ -90,16 +92,16 @@ docs/testing/     独立测试、脱敏摘要及浏览器证据
 
 ## 验证与实际限制
 
-独立测试在H2和真实MySQL8.0.44上各17项通过，包含两组8请求预约竞争、同单违规竞争、关房竞争、事务故障回滚、16小时会话到期、统计复算及UTF-8密码边界。见[独立测试报告](docs/testing/独立测试报告.md)和[脱敏执行摘要](docs/testing/执行记录/脱敏执行摘要.md)。
+当前30人规则的独立测试在H2和真实MySQL8.0.44上各24项通过，包含40名不同学生抢30席、29席后8人争最后1席、取消释放与替补、错峰峰值/端点、日期隔离、原权限/违规/审计事务回归。见[30人名额独立测试报告](docs/testing/30人名额独立测试报告.md)。旧[17项报告](docs/testing/独立测试报告.md)仅是整间独占版的历史证据。
 
 ```powershell
 # 默认H2独立测试。
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/testing/run-independent-tests.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/testing/run-independent-tests.ps1 -EvidenceName H2-30人名额.log
 # 已准备本地独立study_room_test时，切换真实MySQL验证，不清理应用库。
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/testing/run-independent-tests.ps1 -MySql
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/testing/run-independent-tests.ps1 -MySql -EvidenceName MySQL8-30人名额.log
 ```
 
-17为测试方法数，不等于所有业务验收分支全部通过。浏览器完成学生预约/取消/资源释放、管理员登录/统计/房间增删和390像素布局检查；未验证吞吐指标、真实校园认证、全部管理状态组合或真实用户体验。完整范围及未覆盖项见[产品复核](docs/product/首版业务验收复核.md)。
+24为当前测试方法数，不等于所有业务验收分支全部通过。本轮真实浏览器验证30→29→取消→30；既有管理员与手机布局证据继续作为历史集成验证。未验证生产多实例吞吐、真实校园认证、全部管理状态组合或真实用户体验。当前标准见[30人规则](docs/product/30人名额变更规则与验收.md)，[旧产品复核](docs/product/首版业务验收复核.md)是改容量前的历史结果。
 
 依赖审计已消除Vite/esbuild告警；保留用户指定Vue2/Element-UI后仍有3项低等级、1项中等级告警。构建将审计报告写到 `artifacts/build/npm-audit.json`，按课程口径不因审计退出码阻断编译/单测，不自动执行破坏性的 `audit fix --force`。日报使用管理员确认事件估计，没有传感器或历史开放日历。
 

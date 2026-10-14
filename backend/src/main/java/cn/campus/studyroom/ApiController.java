@@ -60,7 +60,7 @@ public class ApiController {
     return Result.ok(service.logout(r.getHeader("Authorization")));
   }
 
-  /** 已登录者查询房间，完整时段可计算空闲状态。 */
+  /** 已登录者查询房间；完整时段返回峰值人数/剩余名额，无时段人数字段为null且仅展示开放状态。 */
   @GetMapping("/rooms")
   public Result rooms(
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
