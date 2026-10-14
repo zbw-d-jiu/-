@@ -17,3 +17,7 @@
 仅向本项目仓库写代码和可公开合成证据。不上传实际DB口令、会话token、本机个人配置、课程原件或含个人来源路径的历史记录；没有发送邮件、聊天或课程平台通知。
 
 源码提交：[d5e0d16](https://github.com/zbw-d-jiu/-/commit/d5e0d166415a0e43403bb913469f7b50f61374e8)。远端写入全部经用户已连接GitHub插件，本地Git用于拉取与校对。
+
+## 2026-10-15固定30名额变更
+
+用户明确修改容量粒度后，插件create_blob上传新29名额截图，create_tree/create_commit提交28个变更文件；update_ref（expected_sha=e6ebea898df8a0f42907af3a5d7c7a54e3f43059、force=false）成功更新main至[4c3b79d](https://github.com/zbw-d-jiu/-/commit/4c3b79df34f29c01d02aeda5cebdc2fb08ae7ae3)。随后GET main与本地fetch/reset --mixed核对该SHA，status为空。24项双库独立验证、实际迁移/浏览器/构建证据见06/07及新测试报告。本条和06/07最后状态另作文档提交，不改变业务源码或测试结果。
