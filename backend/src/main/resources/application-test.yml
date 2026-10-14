@@ -1,0 +1,14 @@
+# 独立测试使用合成内存数据库，无默认账号，测试自行准备数据。
+spring:
+  datasource:
+    url: jdbc:h2:mem:studyroom_test;MODE=MySQL;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=15000
+    username: sa
+    password: ''
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+app:
+  demo-seed: false

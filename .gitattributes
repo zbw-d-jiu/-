@@ -1,0 +1,12 @@
+# 统一源代码换行；Windows批处理明确使用CRLF。
+* text=auto
+*.java text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.vue text eol=lf
+*.css text eol=lf
+*.sql text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.ps1 text eol=lf
+*.bat text eol=crlf

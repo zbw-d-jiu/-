@@ -1,0 +1,14 @@
+# 合成演示环境仅在主动选择demo时启用；不连接正式MySQL。
+spring:
+  datasource:
+    url: jdbc:h2:mem:studyroom;MODE=MySQL;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=15000
+    username: sa
+    password: ''
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+app:
+  demo-seed: true

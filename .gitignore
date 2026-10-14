@@ -25,4 +25,3 @@ application-local.yml
 # 操作系统缓存。
 Thumbs.db
 .DS_Store
-
